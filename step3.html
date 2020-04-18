@@ -1,0 +1,68 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <script>
+    class Agent {
+      constructor(x, y) {
+        this.state = {x, y}
+      }
+    }
+
+    class World {
+      constructor(canvas, agents=[]) {
+        this.canvas = canvas
+        this.agents = agents
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+        return this
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = 3
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        return this
+      }
+    }
+  </script>
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+
+  <!--
+    Ok, cool! I mean, still not very exciting, but let's add a few more agents. Let's add 10 agents to the world, and
+    instead of setting them all at predefined locations, let's choose random x and y coordinates within the canvas
+    (`Math.random` returns a real number between 0 and 1).
+  -->
+
+  <script>
+
+    let sim = new World(worldcanvas)
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+    for (let i = 0; i < 10; ++i) {
+      sim.addAgent(new Agent(
+        x=Math.random() * w,
+        y=Math.random() * h
+      ))
+    }
+    sim.draw()
+
+  </script>
+</body>
+</html>

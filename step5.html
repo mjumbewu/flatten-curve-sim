@@ -1,0 +1,141 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <!--
+    Keep clicking the Step button and eventually all the agents will float off of the world. Maybe we should teach them
+    to collide with the edges of the world.
+  -->
+
+  <script>
+    const _90deg = Math.PI / 2
+    const _180deg = Math.PI
+    const _270deg = 3 * Math.PI / 2
+    const _360deg = 2 * Math.PI
+
+    class Agent {
+      constructor(x, y, speed, direction) {
+        this.state = {x, y, speed, direction}
+      }
+
+      step() {
+        const {x, y, speed, direction} = this.state
+
+        const dx = Math.cos(direction) * speed
+        const dy = Math.sin(direction) * speed
+
+        // Update the current state of the agent with new values.
+        this.state = {
+          x: x + dx,
+          y: y + dy,
+          speed,
+          direction,
+        }
+        return this
+      }
+    }
+
+    class World {
+      constructor(canvas, agents=[]) {
+        this.canvas = canvas
+        this.agents = agents
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+        return this
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = 3
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        return this
+      }
+
+      step() {
+        for (const agent of this.agents) {
+          agent.step()
+          this.bounceAgentsOffWorld()
+        }
+        return this
+      }
+
+      bounceAgentsOffWorld = function () {
+        const w = this.canvas.width
+        const h = this.canvas.height
+
+        for (const agent of this.agents) {
+          const r = 3
+          const {x, y} = agent.state
+          let direction = agent.state.direction
+          if ((x <= r && direction > _90deg && direction < _270deg) ||
+              (x >= w - r && (direction < _90deg || direction > _270deg))) {
+            direction = _180deg - direction
+          }
+          if ((y <= r && direction > _180deg) ||
+              (y >= h - r && direction < _180deg)) {
+            direction = _360deg - direction
+          }
+
+          // Normalize the direction.
+          while (direction < 0) {
+            direction += _360deg
+          }
+          while (direction >= _360deg) {
+            direction -= _360deg
+          }
+
+          // Not a fan of updating the agent state directly like this, but we'll revisit this line later.
+          agent.state.direction = direction
+        }
+        return this
+      }
+    }
+  </script>
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+
+  <!--
+    Ok, now let's automate it so we don't need that button.
+  -->
+
+  <script>
+
+    let sim = new World(worldcanvas)
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+    for (let i = 0; i < 10; ++i) {
+      sim.addAgent(new Agent(
+        x=Math.random() * w,
+        y=Math.random() * h,
+        speed=2,
+        direction=Math.random() * _360deg
+      ))
+    }
+    sim.draw()
+
+    function automateWorld() {
+      sim.step()
+      sim.draw()
+      setTimeout(automateWorld, 50)
+    }
+
+    automateWorld()
+
+  </script>
+</body>
+</html>

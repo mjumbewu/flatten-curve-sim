@@ -1,0 +1,519 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <!--
+    As we can see, it does indeed slow down over time. But, it's good enough for now. We'll address that later. For now
+    let's implement the cycle of healing.
+  -->
+
+  <script>
+    const _90deg = Math.PI / 2
+    const _180deg = Math.PI
+    const _270deg = 3 * Math.PI / 2
+    const _360deg = 2 * Math.PI
+
+    /*
+      uninfected
+
+        (on collision with contagious person, spread with a likelihood of infectiousness)
+
+      infected (random infectiousness and incubationduration)
+      contagious
+
+        (after incubationduration steps, become symptomatic)
+
+      symptomatic (same infectiousness random sicktime)
+      contagious
+
+        (after sicktime steps, the infectionmortality and the agent's vulnerability will determine how likely the agent
+        is to be recovered or dead)
+
+      recovered
+      immune
+      not contagious
+
+      dead
+      not contagious
+    */
+
+    function calcBounceDirecion(speed, direction, normals) {
+      if (normals.length === 0) {
+        return direction
+      }
+
+      let ndx = 0
+      let ndy = 0
+      for (const n of normals) {
+        ndx += n.dx
+        ndy += n.dy
+      }
+
+      // We want the normal vector to have a magnitude of 1, so let's "normalize" it.
+      let mag = Math.sqrt(ndx * ndx + ndy * ndy)
+      let nx = ndx / mag
+      let ny = ndy / mag
+
+      // vf = v - 2 (v • n) n
+      //
+      // v is the current directional vector
+      // vf (or xf - x0) is the after-bounce directional vector
+      // n is the final bounce normal vector
+
+      // Get the components of v
+      const vx = Math.cos(direction) * speed
+      const vy = Math.sin(direction) * speed
+
+      // Get the dot product of v and n
+      const dp = nx * vx + ny * vy
+      if (dp >= 0) { return direction }
+
+      // Calculate each component of the vf vector
+      const vfx = vx - 2 * dp * nx
+      const vfy = vy - 2 * dp * ny
+
+      // The speed should be the same afterwards, so let's not bother calculating it.
+      if (vfx === 0) {
+        if (vfy > 0) { return _90deg }
+        else         { return _270deg }
+      }
+
+      let newdirection = Math.atan(vfy / vfx)
+
+      // arctan has a range between -90° and 90° (always pointing to the right). When vfx is negative, we need to
+      // rotate the direction by 180°.
+      if (vfx < 0) { newdirection += _180deg }
+
+      // Normalize the direction.
+      while (newdirection < 0)        { newdirection += _360deg }
+      while (newdirection >= _360deg) { newdirection -= _360deg }
+
+      return newdirection
+    }
+
+    const statecolors = {
+      recovered: 'green',
+      symptomatic: 'orange',
+      contagious: 'red',
+      uninfected: 'skyblue',
+      dead: 'gray',
+    }
+
+    const afterstep = new Event('afterstep')
+
+    class Agent {
+      constructor(x, y, speed, direction, time=0, color=statecolors.uninfected, radius=3, vulnerability=0.5) {
+        this.state = {x, y, speed, direction, normals: []}
+        this.color = color
+        this.radius = radius
+        this.time = time
+        this.vulnerability = vulnerability
+      }
+
+      setInfected(time, infectiousness, infectionmortality, incubationduration, symptomaticduration) {
+        this.isinfected = true
+        this.iscontagious = true
+        this.infectiontime = this.time
+        this.infectiousness = infectiousness
+        this.infectionmortality = infectionmortality
+        this.incubationduration = incubationduration
+        this.symptomaticduration = symptomaticduration
+        this.color = statecolors.contagious
+        return this
+      }
+
+      progressInfection() {
+        // STATE: uninfected
+        if (!this.isinfected) {
+          return this
+        }
+
+        // STATE: contagious but asymptomatic
+        if (this.iscontagious && !this.issymptomatic) {
+          if (this.time >= this.infectiontime + this.incubationduration) {
+            this.issymptomatic = true
+            this.symptomatictime = this.time
+            this.color = statecolors.symptomatic
+          }
+          return this
+        }
+
+        // STATE: symptomatic (and contagious)
+        if (this.issymptomatic) {
+          if (this.time >= this.symptomatictime + this.symptomaticduration) {
+            this.iscontagious = false
+            this.issymptomatic = false
+            this.isrecovered = true
+            this.recoveredtime = this.time
+            this.color = statecolors.recovered
+            return this
+          }
+
+          // There's a chance that the agent might die at any step while they're sick. It's a small chance, but over
+          // the entire sick period it adds up to the product of the infection severity and the agent's own inherent
+          // vulnerability to the sickness.
+          const chanceofsurvival = 1 - (this.infectionmortality * this.vulnerability)
+          const chanceofsurvival_step = Math.pow(chanceofsurvival, 1.0 / this.symptomaticduration)
+          const chanceofdeath_step = 1 - chanceofsurvival_step
+          if (Math.random() < chanceofdeath_step) {
+            this.iscontagious = false
+            this.issymptomatic = false
+            this.isdead = true
+            this.deathtime = this.time
+            this.color = statecolors.dead
+            return this
+          }
+        }
+      }
+
+      infect(other, mutation=0) {
+        if (other.isinfected || other.isimmune) { return this }
+
+        other.setInfected(
+          time = this.time,
+          // There's some probability that the virus will mutate and become more or less infectious when spread.
+          infectiousness = this.infectiousness + mutation * (2 * Math.random() - 1),
+          infectionmortality = this.infectionmortality + mutation * (2 * Math.random() - 1),
+          incubationduration = this.incubationduration + mutation * (2 * Math.random() - 1),
+          symptomaticduration = this.symptomaticduration + mutation * (2 * Math.random() - 1),
+        )
+
+        return this
+      }
+
+      step() {
+        const {x, y, speed, normals} = this.state
+        let direction = calcBounceDirecion(speed, this.state.direction, normals)
+
+        const dx = Math.cos(direction) * speed
+        const dy = Math.sin(direction) * speed
+
+        // Update the current state of the agent with new values.
+        this.state = {
+          x: x + dx,
+          y: y + dy,
+          speed,
+          direction,
+          normals: [],
+        }
+        this.progressInfection()
+        this.time += 1
+        return this
+      }
+
+      bounce(normal) {
+        this.state.normals.push(normal)
+        return this
+      }
+    }
+
+    class World extends EventTarget {
+      constructor(canvas, agents=[]) {
+        super()
+        this.canvas = canvas
+        this.agents = agents
+        this.time = 0
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+        agent.world = this
+        return this
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = agent.radius
+          const c = agent.color
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fillStyle = c
+          ctx.fill()
+        }
+        return this
+      }
+
+      step() {
+        for (const agent of this.agents) {
+          agent.step()
+        }
+        this.bounceAgentsOffWorld()
+        this.bounceAgentsOffEachOther()
+        this.time += 1
+        this.dispatchEvent(afterstep)
+        return this
+      }
+
+      bounceAgentsOffWorld = function () {
+        const w = this.canvas.width
+        const h = this.canvas.height
+
+        for (const agent of this.agents) {
+          const r = agent.radius
+          const {x, y} = agent.state
+
+          if (x <= r)     { agent.bounce({dx: 1, dy: 0}) }
+          if (x >= w - r) { agent.bounce({dx: -1, dy: 0}) }
+          if (y <= r)     { agent.bounce({dx: 0, dy: 1}) }
+          if (y >= h - r) { agent.bounce({dx: 0, dy: -1}) }
+        }
+        return this
+      }
+
+      bounceAgentsOffEachOther() {
+        for (const agent of this.agents) {
+          const r1 = agent.radius
+          const x1 = agent.state.x
+          const y1 = agent.state.y
+
+          for (const other of this.agents) {
+            if (other === agent) {
+              continue
+            }
+
+            const r2 = other.radius
+            const x2 = other.state.x
+            const y2 = other.state.y
+
+            // First, rough bounding box detection.
+            if (Math.abs(x2 - x1) > r1 + r2 ||
+                Math.abs(y2 - y1) > r1 + r2) {
+              continue
+            }
+
+            // Now precise collision detection
+            const nx = x1 - x2
+            const ny = y1 - y2
+            const nmag = Math.sqrt(nx * nx + ny * ny)
+            if (nmag > r1 + r2) {
+              continue
+            }
+
+            agent.bounce({dx: nx, dy: ny})
+            agent.collisions = (agent.collisions || 0) + 1
+
+            if (agent.iscontagious && Math.random() < agent.infectiousness) {
+              agent.infect(other)
+            }
+          }
+        }
+        return this
+      }
+
+      // CHANGE: Let's add a numsteps to allow us to run the simulation for
+      // a finite number of steps.
+      run(numsteps=null, sleeptime=0) {
+        if (numsteps === 0) {
+          return this
+        }
+
+        let remainingsteps = null
+        if (numsteps !== null) {
+          remainingsteps = numsteps - 1
+        }
+
+        this.step()
+        this.draw()
+
+        this.timeout = setTimeout(() => { this.run(remainingsteps) }, sleeptime)
+        return this
+      }
+
+      stop() {
+        clearTimeout(this.timeout)
+        return this
+      }
+    }
+  </script>
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+
+  <style>
+    #daycounter, #collisioncounter {
+      font-family: sans;
+      font-size: 0.7rem;
+    }
+
+    #health-chart {
+      width: 100%;
+      height: 300px;
+      background-color: yellow;
+    }
+
+    #health-chart path {
+      stroke: none;
+    }
+
+    #recovered-path { fill: green; }
+    #symptomatic-path { fill: orange; }
+    #contagious-path { fill: red; }
+    #uninfected-path { fill: blue; }
+    #dead-path { fill: gray; }
+  </style>
+
+  <p id="daycounter"></p>
+  <p id="collisioncounter"></p>
+
+  <svg id="health-chart" viewbox="0 0 5000 100" preserveAspectRatio="none">
+    <path id="symptomatic-path" d="M 0 0"></path>
+    <path id="contagious-path" d="M 0 0"></path>
+    <path id="uninfected-path" d="M 0 0"></path>
+    <path id="recovered-path" d="M 0 0"></path>
+    <path id="dead-path" d="M 0 0"></path>
+  </svg>
+
+  <script>
+    let uninfectedpath = document.getElementById('uninfected-path')
+    let contagiouspath = document.getElementById('contagious-path')
+    let symptomaticpath = document.getElementById('symptomatic-path')
+    let recoveredpath = document.getElementById('recovered-path')
+    let deadpath = document.getElementById('dead-path')
+
+    let uninfectedd = uninfectedpath.getAttribute('d')
+    let contagiousd = contagiouspath.getAttribute('d')
+    let symptomaticd = symptomaticpath.getAttribute('d')
+    let recoveredd = recoveredpath.getAttribute('d')
+    let deadd = deadpath.getAttribute('d')
+
+    function updatedaydisplay() {
+      daycounter.textContent = `Day ${Math.round(this.time / STEPS_PER_DAY)}`
+    }
+
+    function sum(vals) {
+      return vals.reduce((total, val) => total + val)
+    }
+
+    function avg_and_stdev(vals) {
+      const avg = 1.0 * sum(vals) / vals.length
+      const offsets = vals.map((val) => Math.pow(val - avg, 2))
+      const stdev = Math.sqrt(1.0 * sum(offsets) / vals.length)
+      return [avg, stdev]
+    }
+
+    function updatecollisiondisplay() {
+      const steps_count = this.time
+      const collision_counts = this.agents.map((a) => a.collisions || 0)
+      const [avg_collisions, stdev_collisions] = avg_and_stdev(collision_counts)
+      collisioncounter.textContent = (
+        `Collisions per agent per day: ` +
+        `avg=${(avg_collisions / steps_count * STEPS_PER_DAY).toFixed(2)}, ` +
+        `stdev=${(stdev_collisions / steps_count * STEPS_PER_DAY).toFixed(2)}`
+      )
+    }
+
+    let starttime = new Date()
+    function updatefps() {
+      const logfreq = 500
+      if (this.time % logfreq === 0) {
+        const curtime = new Date()
+        const fps = logfreq / (curtime - starttime) * 1000
+        console.log(`FPS: ${fps.toFixed(2)} (from step ${this.time - logfreq} to ${this.time})`)
+        starttime = curtime
+      }
+    }
+
+    let healthstats = document.getElementById('healthstats-canvas')
+    function updatehealthstats() {
+      if (sim.time % 10 !== 0) { return }
+
+      const time = sim.time
+      const numagents = sim.agents.length
+      let counts = {
+        uninfected: 0,
+        contagious: 0,
+        symptomatic: 0,
+        recovered: 0,
+        dead: 0,
+      }
+
+      for (const agent of sim.agents) {
+        if (agent.isrecovered) { ++counts.recovered }
+        else if (agent.isdead) { ++counts.dead }
+        else if (agent.issymptomatic) { ++counts.symptomatic }
+        else if (agent.iscontagious) { ++counts.contagious }
+        else { ++counts.uninfected }
+      }
+
+      const normcounts = {
+        uninfected: (100.0 * counts.uninfected / numagents),
+        contagious: (100.0 * counts.contagious / numagents),
+        symptomatic: (100.0 * counts.symptomatic / numagents),
+        recovered: (100.0 * counts.recovered / numagents),
+        dead: (100.0 * counts.dead / numagents),
+      }
+
+      let y = 0
+      y += normcounts.dead
+      deadd += (deadd === '' ? 'M ' : ' L ') + `${time} ${y}`
+      y += normcounts.recovered
+      recoveredd += (recoveredd === '' ? 'M ' : ' L ') + `${time} ${y}`
+      y += normcounts.uninfected
+      uninfectedd += (uninfectedd === '' ? 'M ' : ' L ') + `${time} ${y}`
+      y += normcounts.contagious
+      contagiousd += (contagiousd === '' ? 'M ' : ' L ') + `${time} ${y}`
+      y += normcounts.symptomatic
+      symptomaticd += (symptomaticd === '' ? 'M ' : ' L ') + `${time} ${y}`
+
+      deadpath.setAttribute('d', deadd + ` L ${time} 0`)
+      recoveredpath.setAttribute('d', recoveredd + ` L ${time} 0`)
+      uninfectedpath.setAttribute('d', uninfectedd + ` L ${time} 0`)
+      contagiouspath.setAttribute('d', contagiousd + ` L ${time} 0`)
+      symptomaticpath.setAttribute('d', symptomaticd + ` L ${time} 0`)
+    }
+
+    let sim = new World(worldcanvas, agents=[])
+    sim.addEventListener('afterstep', updatedaydisplay)
+    sim.addEventListener('afterstep', updatecollisiondisplay)
+    sim.addEventListener('afterstep', updatefps)
+    sim.addEventListener('afterstep', updatehealthstats)
+
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+
+    const COLLISIONS_PER_STEP = 17.5 / 1000
+    for (let i = 0; i < 199; ++i) {
+      sim.addAgent(new Agent(
+        x=Math.random() * w,
+        y=Math.random() * h,
+        speed=1,
+        direction=Math.random() * _360deg,
+      ))
+    }
+
+    const STEPS_PER_DAY = 100
+    const TARGET_TOTAL_INFECTIONS = 3.5
+    const INCUBATION_STEPS = 5 * STEPS_PER_DAY
+    const SYMPTOMATIC_STEPS = 10 * STEPS_PER_DAY
+    const INFECTIOUS_STEPS = INCUBATION_STEPS + SYMPTOMATIC_STEPS
+    const AVERAGE_MORTALITY_RATE = 0.3
+
+    let patient0 = new Agent(
+      x=Math.random() * w,
+      y=Math.random() * h,
+      speed=1,
+      direction=Math.random() * _360deg,
+    )
+    patient0.setInfected(
+      time=0,
+      infectiousness=TARGET_TOTAL_INFECTIONS / (COLLISIONS_PER_STEP * INFECTIOUS_STEPS),
+      infectionmortality=AVERAGE_MORTALITY_RATE,
+      incubationduration=INCUBATION_STEPS,
+      symptomaticduration=SYMPTOMATIC_STEPS,
+    )
+    sim.addAgent(patient0)
+
+    sim.run(50 * STEPS_PER_DAY)
+
+  </script>
+</body>
+</html>

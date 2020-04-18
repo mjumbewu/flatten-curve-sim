@@ -1,0 +1,75 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <!--
+    That's not very exciting — it's just an empty simulation world. But now comes the _fun_ part! Let's create a
+    couple of core structures that are going to help us manage the simulation:
+
+    * `Agent`: In each simulation there are a number of individual actors. Each one of these actors is an `Agent`
+    * `World`: We'll use this structure to keep track of all the pices of the simulation, and tell all the individual
+      pieces what "time" it is.
+  -->
+
+  <script>
+    class Agent {
+      constructor(x, y) {
+        this.state = {x, y}
+      }
+    }
+
+    class World {
+      constructor(canvas, agents=[]) {
+        this.canvas = canvas
+        this.agents = agents
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+        return this
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = 3
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        return this
+      }
+    }
+  </script>
+
+  <!--
+    Cool. So now we can create a new canvas and add an agent to it. Below you'll see me get the width and height of the
+    canvas, and then multiply each of those by 0.5 to set the x and y coordinates of the agent. This just allows us to
+    place the agent in the middle of the canvas (half way across the width and half way "across" the height).
+  -->
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+
+  <script>
+
+    let sim = new World(worldcanvas)
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+    sim.addAgent(new Agent(
+      x=0.5 * w,
+      y=0.5 * h,
+    ))
+    sim.draw()
+
+  </script>
+</body>
+</html>

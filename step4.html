@@ -1,0 +1,114 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <!--
+    Great! But we need this simulation to be dynamic, so let's introduce the idea of time into our world.
+  -->
+
+  <script>
+    // These constants will come in handy.
+    const _90deg = Math.PI / 2
+    const _180deg = Math.PI
+    const _270deg = 3 * Math.PI / 2
+    const _360deg = 2 * Math.PI
+
+    class Agent {
+      constructor(x, y, speed, direction) {
+        this.state = {x, y, speed, direction}
+      }
+
+      step() {
+        let {x, y, speed, direction, dx, dy} = this.state
+        let past = this.past || {}
+
+        // Only recalculate the dx and dy if the speed or direction has changed.
+        if (past.speed !== speed ||
+            past.direction !== direction) {
+          dx = Math.cos(direction) * speed
+          dy = Math.sin(direction) * speed
+        }
+
+        // Update the past state of the agent with the current state values.
+        this.past = {...this.state}
+
+        // Update the current state of the agent with new values.
+        x += dx
+        y += dy
+        this.state = {...this.state, x, y, dx, dy, direction, speed}
+        return this
+      }
+    }
+
+    class World {
+      constructor(canvas, agents=[]) {
+        this.canvas = canvas
+        this.agents = agents
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+        return this
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = 3
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        return this
+      }
+
+      step() {
+        for (const agent of this.agents) {
+          agent.step()
+        }
+        return this
+      }
+    }
+  </script>
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+  <button id="stepbutton">Step</button>
+
+  <!--
+    Ok, cool! I mean, still not very exciting, but let's add a few more agents. Let's add 10 agents to the world, and
+    instead of setting them all at predefined locations, let's choose random x and y coordinates within the canvas
+    (`Math.random` returns a real number between 0 and 1).
+  -->
+
+  <script>
+
+    let sim = new World(worldcanvas)
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+    for (let i = 0; i < 10; ++i) {
+      sim.addAgent(new Agent(
+        x=Math.random() * w,
+        y=Math.random() * h,
+        speed=5,
+        direction=Math.random() * _360deg
+      ))
+    }
+    sim.draw()
+
+    stepbutton.addEventListener('click', () => {
+      sim.step()
+      sim.draw()
+    })
+
+  </script>
+</body>
+</html>

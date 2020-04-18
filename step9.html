@@ -1,0 +1,226 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <!--
+    Now we're getting somewhere! Let's make the appearance of the agents a little configurable.
+  -->
+
+  <script>
+    const _90deg = Math.PI / 2
+    const _180deg = Math.PI
+    const _270deg = 3 * Math.PI / 2
+    const _360deg = 2 * Math.PI
+
+    function calcBounceDirecion(speed, direction, normals) {
+      if (normals.length === 0) {
+        return direction
+      }
+
+      let ndx = 0
+      let ndy = 0
+      for (const n of normals) {
+        ndx += n.dx
+        ndy += n.dy
+      }
+
+      // We want the normal vector to have a magnitude of 1, so let's "normalize" it.
+      let mag = Math.sqrt(ndx * ndx + ndy * ndy)
+      let nx = ndx / mag
+      let ny = ndy / mag
+
+      // vf = v - 2 (v • n) n
+      //
+      // v is the current directional vector
+      // vf (or xf - x0) is the after-bounce directional vector
+      // n is the final bounce normal vector
+
+      // Get the components of v
+      const vx = Math.cos(direction) * speed
+      const vy = Math.sin(direction) * speed
+
+      // Get the dot product of v and n
+      const dp = nx * vx + ny * vy
+      if (dp >= 0) { return direction }
+
+      // Calculate each component of the vf vector
+      const vfx = vx - 2 * dp * nx
+      const vfy = vy - 2 * dp * ny
+
+      // The speed should be the same afterwards, so let's not bother calculating it.
+      if (vfx === 0) {
+        if (vfy > 0) { return _90deg }
+        else         { return _270deg }
+      }
+
+      let newdirection = Math.atan(vfy / vfx)
+
+      // arctan has a range between -90° and 90° (always pointing to the right). When vfx is negative, we need to
+      // rotate the direction by 180°.
+      if (vfx < 0) { newdirection += _180deg }
+
+      // Normalize the direction.
+      while (newdirection < 0)        { newdirection += _360deg }
+      while (newdirection >= _360deg) { newdirection -= _360deg }
+
+      return newdirection
+    }
+
+    class Agent {
+      constructor(x, y, speed, direction, color='black', radius=3) {
+        this.state = {x, y, speed, direction, normals: []}
+        this.color = color
+        this.radius = radius
+      }
+
+      step() {
+        const {x, y, speed, normals} = this.state
+        let direction = calcBounceDirecion(speed, this.state.direction, normals)
+
+        const dx = Math.cos(direction) * speed
+        const dy = Math.sin(direction) * speed
+
+        // Update the current state of the agent with new values.
+        this.state = {
+          x: x + dx,
+          y: y + dy,
+          speed,
+          direction,
+          normals: [],
+        }
+        return this
+      }
+
+      bounce(normal) {
+        this.state.normals.push(normal)
+        return this
+      }
+    }
+
+    class World {
+      constructor(canvas, agents=[]) {
+        this.canvas = canvas
+        this.agents = agents
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = agent.radius
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fillStyle = agent.color
+          ctx.fill()
+        }
+        return this
+      }
+
+      step() {
+        for (const agent of this.agents) {
+          agent.step()
+        }
+        this.bounceAgentsOffWorld()
+        this.bounceAgentsOffEachOther()
+        return this
+      }
+
+      bounceAgentsOffWorld = function () {
+        const w = this.canvas.width
+        const h = this.canvas.height
+
+        for (const agent of this.agents) {
+          const r = agent.radius
+          const {x, y} = agent.state
+
+          if (x <= r)     { agent.bounce({dx: 1, dy: 0}) }
+          if (x >= w - r) { agent.bounce({dx: -1, dy: 0}) }
+          if (y <= r)     { agent.bounce({dx: 0, dy: 1}) }
+          if (y >= h - r) { agent.bounce({dx: 0, dy: -1}) }
+        }
+        return this
+      }
+
+      bounceAgentsOffEachOther() {
+        for (const agent of this.agents) {
+          const r1 = agent.radius
+          const x1 = agent.state.x
+          const y1 = agent.state.y
+
+          for (const other of this.agents) {
+            if (other === agent) {
+              continue
+            }
+
+            const r2 = other.radius
+            const x2 = other.state.x
+            const y2 = other.state.y
+
+            // First, rough bounding box detection.
+            if (Math.abs(x2 - x1) > r1 + r2 ||
+                Math.abs(y2 - y1) > r1 + r2) {
+              continue
+            }
+
+            // Now precise collision detection
+            const nx = x1 - x2
+            const ny = y1 - y2
+            const nmag = Math.sqrt(nx * nx + ny * ny)
+            if (nmag > r1 + r2) {
+              continue
+            }
+
+            agent.bounce({dx: nx, dy: ny})
+          }
+        }
+        return this
+      }
+
+      run() {
+        this.step()
+        this.draw()
+        this.timeout = setTimeout(() => { this.run() }, 50)
+        return this
+      }
+
+      stop() {
+        clearTimeout(this.timeout)
+        return this
+      }
+    }
+  </script>
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+
+  <script>
+
+    let sim = new World(worldcanvas)
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+    for (let i = 0; i < 100; ++i) {
+      sim.addAgent(new Agent(
+        x=Math.random() * w,
+        y=Math.random() * h,
+        speed=Math.round(Math.random() * 3),
+        direction=Math.random() * _360deg,
+        color='#' + Math.floor(Math.random()*16777215).toString(16),
+        radius=Math.round(3 + Math.random() * 7),
+      ))
+    }
+    sim.run()
+
+  </script>
+</body>
+</html>

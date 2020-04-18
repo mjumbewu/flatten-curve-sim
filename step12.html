@@ -1,0 +1,423 @@
+<html>
+<body>
+  <style>
+    #worldcanvas {
+      border: 2px solid black;
+    }
+  </style>
+
+  <!--
+    So much fun!
+
+    Now let's get serious. We're gonna model what phase of infection each agent is in.
+
+    infected (true/false)
+    infectiousness (float)
+    incubationduration (int)
+    contagious
+    symptomatic
+    vulnerability
+    recovered
+    dead
+  -->
+
+  <script>
+    const _90deg = Math.PI / 2
+    const _180deg = Math.PI
+    const _270deg = 3 * Math.PI / 2
+    const _360deg = 2 * Math.PI
+
+    /*
+      uninfected
+
+        (on collision with contagious person, spread with a likelihood of infectiousness)
+
+      infected (random infectiousness and incubationduration)
+      contagious
+
+        (after incubationduration steps, become symptomatic)
+
+      symptomatic (same infectiousness random sicktime)
+      contagious
+
+        (after sicktime steps, vulnerability will determine how likely the agent is to be recovered or dead)
+
+      recovered
+      immune
+      not contagious
+
+      dead
+      not contagious
+    */
+
+    function calcBounceDirecion(speed, direction, normals) {
+      if (normals.length === 0) {
+        return direction
+      }
+
+      let ndx = 0
+      let ndy = 0
+      for (const n of normals) {
+        ndx += n.dx
+        ndy += n.dy
+      }
+
+      // We want the normal vector to have a magnitude of 1, so let's "normalize" it.
+      let mag = Math.sqrt(ndx * ndx + ndy * ndy)
+      let nx = ndx / mag
+      let ny = ndy / mag
+
+      // vf = v - 2 (v • n) n
+      //
+      // v is the current directional vector
+      // vf (or xf - x0) is the after-bounce directional vector
+      // n is the final bounce normal vector
+
+      // Get the components of v
+      const vx = Math.cos(direction) * speed
+      const vy = Math.sin(direction) * speed
+
+      // Get the dot product of v and n
+      const dp = nx * vx + ny * vy
+      if (dp >= 0) { return direction }
+
+      // Calculate each component of the vf vector
+      const vfx = vx - 2 * dp * nx
+      const vfy = vy - 2 * dp * ny
+
+      // The speed should be the same afterwards, so let's not bother calculating it.
+      if (vfx === 0) {
+        if (vfy > 0) { return _90deg }
+        else         { return _270deg }
+      }
+
+      let newdirection = Math.atan(vfy / vfx)
+
+      // arctan has a range between -90° and 90° (always pointing to the right). When vfx is negative, we need to
+      // rotate the direction by 180°.
+      if (vfx < 0) { newdirection += _180deg }
+
+      // Normalize the direction.
+      while (newdirection < 0)        { newdirection += _360deg }
+      while (newdirection >= _360deg) { newdirection -= _360deg }
+
+      return newdirection
+    }
+
+    const statecolors = {
+      recovered: 'green',
+      symptomatic: 'orange',
+      contagious: 'red',
+      uninfected: 'blue',
+    }
+
+    const afterstep = new Event('afterstep')
+
+    class Agent {
+      constructor(x, y, speed, direction, time=0, color='black', radius=3) {
+        this.state = {x, y, speed, direction, normals: []}
+        this.color = color
+        this.radius = radius
+        this.time = time
+      }
+
+      setInfected(time, infectiousness, incubationduration, symptomaticduration) {
+        this.isinfected = true
+        this.iscontagious = true
+        this.infectiontime = this.time
+        this.infectiousness = infectiousness
+        this.incubationduration = incubationduration
+        this.symptomaticduration = symptomaticduration
+        this.color = statecolors.contagious
+        return this
+      }
+
+      infect(other, mutation=0) {
+        if (other.isimmune) { return this }
+
+        other.setInfected(
+          time = this.time,
+          // There's some probability that the virus will mutate and become more or less infectious when spread.
+          infectiousness = this.infectiousness + mutation * (2 * Math.random() - 1),
+          incubationduration = this.incubationduration + mutation * (2 * Math.random() - 1),
+          symptomaticduration = this.symptomaticduration + mutation * (2 * Math.random() - 1),
+        )
+
+        return this
+      }
+
+      step() {
+        const {x, y, speed, normals} = this.state
+        let direction = calcBounceDirecion(speed, this.state.direction, normals)
+
+        const dx = Math.cos(direction) * speed
+        const dy = Math.sin(direction) * speed
+
+        // Update the current state of the agent with new values.
+        this.state = {
+          x: x + dx,
+          y: y + dy,
+          speed,
+          direction,
+          normals: [],
+        }
+        this.time += 1
+        return this
+      }
+
+      bounce(normal) {
+        this.state.normals.push(normal)
+        return this
+      }
+    }
+
+    class World extends EventTarget {
+      constructor(canvas, agents=[], histbars=[]) {
+        super()
+        this.canvas = canvas
+        this.agents = agents
+        this.histbars = histbars
+        this.time = 0
+      }
+
+      addAgent(agent) {
+        this.agents.push(agent)
+        agent.world = this
+        return this
+      }
+
+      draw() {
+        const [w, h] = [this.canvas.width, this.canvas.height]
+
+        let ctx = this.canvas.getContext('2d')
+        ctx.clearRect(0, 0, w, h)
+        for (const agent of this.agents) {
+          const x = agent.state.x
+          const y = agent.state.y
+          const r = agent.radius
+          let color
+
+          if (agent.isimmune) {
+            color = statecolors.immune
+          } else if (agent.issymptomatic) {
+            color = statecolors.symptomatic
+          } else if (agent.iscontagious) {
+            color = statecolors.contagious
+          } else {
+            color = statecolors.uninfected
+          }
+
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fillStyle = color
+          ctx.fill()
+        }
+        return this
+      }
+
+      step() {
+        for (const agent of this.agents) {
+          agent.step()
+        }
+        this.bounceAgentsOffWorld()
+        this.bounceAgentsOffEachOther()
+        this.time += 1
+        this.dispatchEvent(afterstep)
+        return this
+      }
+
+      bounceAgentsOffWorld = function () {
+        const w = this.canvas.width
+        const h = this.canvas.height
+
+        for (const agent of this.agents) {
+          const r = agent.radius
+          const {x, y} = agent.state
+
+          if (x <= r)     { agent.bounce({dx: 1, dy: 0}) }
+          if (x >= w - r) { agent.bounce({dx: -1, dy: 0}) }
+          if (y <= r)     { agent.bounce({dx: 0, dy: 1}) }
+          if (y >= h - r) { agent.bounce({dx: 0, dy: -1}) }
+        }
+        return this
+      }
+
+      bounceAgentsOffEachOther() {
+        for (const agent of this.agents) {
+          const r1 = agent.radius
+          const x1 = agent.state.x
+          const y1 = agent.state.y
+
+          for (const other of this.agents) {
+            if (other === agent) {
+              continue
+            }
+
+            const r2 = other.radius
+            const x2 = other.state.x
+            const y2 = other.state.y
+
+            // First, rough bounding box detection.
+            if (Math.abs(x2 - x1) > r1 + r2 ||
+                Math.abs(y2 - y1) > r1 + r2) {
+              continue
+            }
+
+            // Now precise collision detection
+            const nx = x1 - x2
+            const ny = y1 - y2
+            const nmag = Math.sqrt(nx * nx + ny * ny)
+            if (nmag > r1 + r2) {
+              continue
+            }
+
+            agent.bounce({dx: nx, dy: ny})
+            agent.collisions = (agent.collisions || 0) + 1
+
+            if (agent.iscontagious && Math.random() < agent.infectiousness) {
+              agent.infect(other)
+            }
+          }
+        }
+        return this
+      }
+
+      run(sleeptime=0) {
+        this.step()
+        this.draw()
+        this.timeout = setTimeout(() => { this.run() }, sleeptime)
+        return this
+      }
+
+      stop() {
+        clearTimeout(this.timeout)
+        return this
+      }
+    }
+  </script>
+
+  <canvas width="600" height="300" id="worldcanvas"></canvas>
+
+  <style>
+    #daycounter {
+      font-family: sans;
+      font-size: 0.7rem;
+    }
+    #collision-count-histogram {
+      display: flex;
+      height: 150px;
+      width: 100%;
+    }
+    #collision-count-histogram > span {
+      display: block;
+      background-color: gray;
+      height: 0;
+      width: 100%;
+      transition: height 1s;
+    }
+    #collision-count-x-axis {
+      display: flex;
+      width: 100%;
+      font-family: sans-serif;
+      font-size: 0.7rem;
+      justify-content: space-evenly;
+    }
+  </style>
+
+  <div id="collision-count-chart">
+    <div id="collision-count-histogram">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div id="collision-count-x-axis">
+      <span>00</span> <span>01</span> <span>02</span> <span>03</span> <span>04</span> <span>05</span> <span>06</span> <span>07</span> <span>08</span> <span>09</span>
+      <span>10</span> <span>11</span> <span>12</span> <span>13</span> <span>14</span> <span>15</span> <span>16</span> <span>17</span> <span>18</span> <span>19</span>
+      <span>20</span> <span>21</span> <span>22</span> <span>23</span> <span>24</span> <span>25</span> <span>26</span> <span>27</span> <span>28</span> <span>29</span>
+      <span>30</span> <span>31</span> <span>32</span> <span>33</span> <span>34</span> <span>35</span> <span>36</span> <span>37</span> <span>38</span> <span>39</span>
+    </div>
+  </div>
+  <p id="daycounter"></p>
+
+  <script>
+    let collisionhist = document.getElementById('collision-count-histogram')
+    let collisionbars = []
+    for (let bar of collisionhist.querySelectorAll('span')) {
+      collisionbars.push(bar)
+    }
+
+    function updatecollisiondist() {
+      let collisionsperkilostep = [] // about 50+ seconds
+      let maxcount = 0
+      for (const agent of this.agents) {
+        const bin = Math.round((agent.collisions || 0) / (agent.time / 1000.0))
+        const count = (collisionsperkilostep[bin] || 0)
+        collisionsperkilostep[bin] = count + 1
+        maxcount = count > maxcount ? count : maxcount
+      }
+      for (let bin = 0; bin < this.histbars.length; ++bin) {
+        let bar = histbars[bin]
+        const count = (collisionsperkilostep[bin] || 0)
+        const height = 100.0 * count / maxcount
+        bar.style.height = `${height}%`
+      }
+    }
+
+    function updatedaydisplay() {
+      daycounter.textContent = `Day ${Math.round(this.time / 100)}`
+    }
+
+    let sim = new World(worldcanvas, agents=[], histbars=collisionbars)
+    sim.addEventListener('afterstep', updatecollisiondist)
+    sim.addEventListener('afterstep', updatedaydisplay)
+
+    let [w, h] = [worldcanvas.width, worldcanvas.height]
+
+    // With 200 agents we stablize somewhere between 16 and 19 collisions per 1000 steps. Let's call it 17.5
+    const COLLISIONS_PER_STEP = 17.5 / 1000
+    for (let i = 0; i < 199; ++i) {
+      sim.addAgent(new Agent(
+        x=Math.random() * w,
+        y=Math.random() * h,
+        speed=1,
+        direction=Math.random() * _360deg,
+      ))
+    }
+
+    // Left unchecked, we want patient0 to infect around 2.5 other agents. The infectiousness should be set to the
+    // likelihood of infecting an agent on each collision. We calculate it by using our target total number of agents
+    // infected:
+    //
+    //   LIKELIHOOD_OF_INFECTION_PER_COLLISION * COLLISIONS_PER_STEP * TOTAL_INFECTIOUS_STEPS = TOTAL_INFECTIONS = 2.5
+    //
+    //   LIKELIHOOD_OF_INFECTION_PER_COLLISION = 2.5 / (COLLISIONS_PER_STEP * TOTAL_INFECTIOUS_STEPS)
+    //
+    // Note that the TOTAL_INFECTIOUS_STEPS is (incubationduration + symptomaticduration), 1500 steps. So:
+    //
+    //   LIKELIHOOD_OF_INFECTION_PER_COLLISION = 2.5 / (COLLISIONS_PER_STEP * 1500)
+
+    const TARGET_TOTAL_INFECTIONS = 2.5
+    const INCUBATION_STEPS = 500
+    const SYMPTOMATIC_STEPS = 1000
+    const INFECTIOUS_STEPS = INCUBATION_STEPS + SYMPTOMATIC_STEPS
+
+    let patient0 = new Agent(
+      x=Math.random() * w,
+      y=Math.random() * h,
+      speed=1,
+      direction=Math.random() * _360deg,
+    )
+    patient0.setInfected(
+      time=0,
+      infectiousness=TARGET_TOTAL_INFECTIONS / (COLLISIONS_PER_STEP * INFECTIOUS_STEPS),
+      incubationduration=INCUBATION_STEPS,
+      symptomaticduration=SYMPTOMATIC_STEPS,
+    )
+    sim.addAgent(patient0)
+
+    sim.run()
+
+  </script>
+</body>
+</html>
