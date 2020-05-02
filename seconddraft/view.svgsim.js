@@ -36,10 +36,10 @@ class SVGSimView {
       }
 
       boundaryEl = boundaryEl || this.makeBoundaryEl()
-      boundaryEl.setAttribute('x1', boundary.x0)
-      boundaryEl.setAttribute('y1', boundary.y0)
-      boundaryEl.setAttribute('x2', boundary.x1)
-      boundaryEl.setAttribute('y2', boundary.y1)
+      boundaryEl.setAttribute('x1', boundary.x1)
+      boundaryEl.setAttribute('y1', boundary.y1)
+      boundaryEl.setAttribute('x2', boundary.x2)
+      boundaryEl.setAttribute('y2', boundary.y2)
     }
   }
 
