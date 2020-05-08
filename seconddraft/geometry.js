@@ -1,5 +1,21 @@
 const π = Math.PI
 
+class Point {
+  constructor(x, y) {
+    this.x = x
+    this.y = y
+  }
+
+  offset(vector) {
+    if (vector.magnitude === 0) { return this }
+
+    return new Point(
+      this.x + vector.x,
+      this.y + vector.y,
+    )
+  }
+}
+
 class Vector {
   constructor(x, y, magnitude=null, direction=null) {
     this.x = x
@@ -8,9 +24,22 @@ class Vector {
     this._direction = direction
   }
 
+  static fromPolar(magnitude, direction) {
+    return new Vector(
+      Math.cos(direction) * magnitude,
+      Math.sin(direction) * magnitude,
+      magnitude,
+      direction,
+    )
+  }
+
+
   get magnitude() {
     if (this._magnitude === null) {
-      this._magnitude = Math.sqrt(this.x * this.x + this.y * this.y)
+      this._magnitude = (
+        this.x === this.y === 0 ? 0 :
+        Math.sqrt(this.x * this.x + this.y * this.y)
+      )
     }
     return this._magnitude
   }
@@ -37,6 +66,7 @@ class Vector {
 
   get unit() {
     const magnitude = this.magnitude
+    if (magnitude === 1) { return this }
     return new Vector(
       this.x / magnitude,
       this.y / magnitude,
@@ -46,37 +76,26 @@ class Vector {
   }
 
   plus(other) {
-    if (other) {
-      return new Vector(
-        this.x + other.x,
-        this.y + other.y,
-      )
-    }
+    if (other.magnitude === 0) { return this }
+    return new Vector(
+      this.x + other.x,
+      this.y + other.y,
+    )
   }
 
   times(factor) {
-    if (factor !== undefined) {
-      return new Vector(
-        this.x * factor,
-        this.y * factor,
-        this._magnitude !== null ? this._magnitude * factor : null,
-        this._direction
-      )
-    }
+    if (factor === 1) { return this }
+    return new Vector(
+      this.x * factor,
+      this.y * factor,
+      this._magnitude !== null ? this._magnitude * factor : null,
+      this._direction
+    )
   }
 
   dot(other) {
     return this.x * other.x + this.y * other.y
   }
-}
-
-Vector.fromPolar = function(magnitude, direction) {
-  return new Vector(
-    Math.cos(direction) * magnitude,
-    Math.sin(direction) * magnitude,
-    magnitude,
-    direction,
-  )
 }
 
 class Segment {

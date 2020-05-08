@@ -1,29 +1,29 @@
-import { Vector } from './geometry.js'
+import { Point, Vector } from './geometry.js'
 
 class Agent {
   constructor(params) {
-    this.x = params.x
-    this.y = params.y
+    this.position = params.position || new Point(params.x, params.y)
     this.radius = params.radius
     this.velocity = params.velocity || Vector.fromPolar(params.speed, params.direction)
     this.time = params.time || 0
   }
 
+  get x() { return this.position.x }
+  get y() { return this.position.y }
+
   step(Δt=1) {
     // Calculate the change in position based on how much time has ellapsed (dt)
-    const Δx = this.velocity.x * Δt
-    const Δy = this.velocity.y * Δt
+    const Δp = this.velocity.times(Δt)
 
-    // Calculate new values for x and y
-    const x = this.x + Δx
-    const y = this.y + Δy
+    // Calculate new position
+    const position = this.position.offset(Δp)
 
     // Calculate the new time
     const time = this.time + Δt
 
     return new Agent({
       ...this,
-      x, y,
+      position,
       time,
     })
   }
