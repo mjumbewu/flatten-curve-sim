@@ -99,19 +99,23 @@ class Vector {
 }
 
 class Segment {
-  constructor(x1, y1, x2, y2) {
+  constructor(x1, y1, x2, y2, normal=null) {
     this.x1 = x1
     this.y1 = y1
     this.x2 = x2
     this.y2 = y2
+    this._normal = normal
   }
 
   get normal() {
-    const orthogonal = new Vector(
-      this.y2 - this.y1,
-      this.x1 - this.x2,
-    )
-    return orthogonal.unit
+    if (this._normal === null) {
+      const orthogonal = new Vector(
+        this.y2 - this.y1,
+        this.x1 - this.x2,
+      )
+      this._normal = orthogonal.unit
+    }
+    return this._normal
   }
 
   get slope() {
