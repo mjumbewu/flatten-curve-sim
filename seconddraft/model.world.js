@@ -28,10 +28,10 @@ class World {
         // direction (or opposite direction, depending on the side) of the
         // boundary's normal vector.
         const normal = boundary.normal
-        const oldNearestX = old_.x - (normal.x * old_.radius) * side
-        const oldNearestY = old_.y - (normal.y * old_.radius) * side
-        const newNearestX = new_.x - (normal.x * new_.radius) * side
-        const newNearestY = new_.y - (normal.y * new_.radius) * side
+        const oldNearestX = old_.x - (normal.Δx * old_.radius) * side
+        const oldNearestY = old_.y - (normal.Δy * old_.radius) * side
+        const newNearestX = new_.x - (normal.Δx * new_.radius) * side
+        const newNearestY = new_.y - (normal.Δy * new_.radius) * side
         const nearestPointPath = new Segment(oldNearestX, oldNearestY, newNearestX, newNearestY)
 
         if (boundary.isCrossedBy(nearestPointPath)) {

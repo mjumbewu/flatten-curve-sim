@@ -10,16 +10,16 @@ class Point {
     if (vector.magnitude === 0) { return this }
 
     return new Point(
-      this.x + vector.x,
-      this.y + vector.y,
+      this.x + vector.Δx,
+      this.y + vector.Δy,
     )
   }
 }
 
 class Vector {
-  constructor(x, y, magnitude=null, direction=null) {
-    this.x = x
-    this.y = y
+  constructor(Δx, Δy, magnitude=null, direction=null) {
+    this.Δx = Δx
+    this.Δy = Δy
     this._magnitude = magnitude
     this._direction = direction
   }
@@ -36,8 +36,8 @@ class Vector {
   get magnitude() {
     if (this._magnitude === null) {
       this._magnitude = (
-        this.x === this.y === 0 ? 0 :
-        Math.sqrt(this.x * this.x + this.y * this.y)
+        this.Δx === this.Δy === 0 ? 0 :
+        Math.sqrt(this.Δx * this.Δx + this.Δy * this.Δy)
       )
     }
     return this._magnitude
@@ -45,16 +45,16 @@ class Vector {
 
   get direction() {
     if (this._direction === null) {
-      if (this.x === 0) {
-        if (this.y > 0) { this._direction = π/2 }
+      if (this.Δx === 0) {
+        if (this.Δy > 0) { this._direction = π/2 }
         else         { this._direction = 3*π/2 }
       }
 
-      this._direction = Math.atan(this.y / this.x)
+      this._direction = Math.atan(this.Δy / this.Δx)
 
       // arctan has a range between -90° and 90° (always pointing to the right).
-      // When this.x is negative, we need to rotate the direction by 180°.
-      if (this.x < 0) { this._direction += π }
+      // When this.Δx is negative, we need to rotate the direction by 180°.
+      if (this.Δx < 0) { this._direction += π }
 
       // Normalize the direction.
       while (this._direction < 0)    { this._direction += 2*π }
@@ -67,8 +67,8 @@ class Vector {
     const magnitude = this.magnitude
     if (magnitude === 1) { return this }
     return new Vector(
-      this.x / magnitude,
-      this.y / magnitude,
+      this.Δx / magnitude,
+      this.Δy / magnitude,
       1,
       this._direction
     )
@@ -77,23 +77,23 @@ class Vector {
   plus(other) {
     if (other.magnitude === 0) { return this }
     return new Vector(
-      this.x + other.x,
-      this.y + other.y,
+      this.Δx + other.Δx,
+      this.Δy + other.Δy,
     )
   }
 
   times(factor) {
     if (factor === 1) { return this }
     return new Vector(
-      this.x * factor,
-      this.y * factor,
+      this.Δx * factor,
+      this.Δy * factor,
       this._magnitude !== null ? this._magnitude * factor : null,
       this._direction
     )
   }
 
   dot(other) {
-    return this.x * other.x + this.y * other.y
+    return this.Δx * other.Δx + this.Δy * other.Δy
   }
 }
 

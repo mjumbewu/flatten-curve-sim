@@ -29,7 +29,7 @@ class Agent {
   }
 
   bounce(bounceVector) {
-    if (bounceVector.x === 0 && bounceVector.y === 0) {
+    if (bounceVector.magnitude === 0) {
       return this
     }
 
