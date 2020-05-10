@@ -33,7 +33,6 @@ class Vector {
     )
   }
 
-
   get magnitude() {
     if (this._magnitude === null) {
       this._magnitude = (
