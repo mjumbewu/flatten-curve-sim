@@ -9,13 +9,12 @@ class World {
   }
 
   step(Δt=1) {
+    const zero = new Vector(0, 0)
+
     let getBounceVector = (agentStates) => {
       const [old_, new_] = agentStates
-      const Δx = new_.x - old_.x
-      const Δy = new_.y - old_.y
-      const zeroVector = new Vector(0, 0)
 
-      let agentBounceVector = zeroVector
+      let agentBounceVector = zero
       for (const boundary of this.boundaries) {
         // First we figure out which side of the boundary the original agent
         // center was on. There is a good explanation of why the following does
