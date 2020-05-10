@@ -7,7 +7,7 @@ class Point {
   }
 
   offset(vector) {
-    if (vector.magnitude === 0) { return this }
+    if (vector.iszero) { return this }
 
     return new Point(
       this.x + vector.Δx,
@@ -17,50 +17,42 @@ class Point {
 }
 
 class Vector {
-  constructor(Δx, Δy, magnitude=null, direction=null) {
+  constructor(Δx, Δy) {
     this.Δx = Δx
     this.Δy = Δy
-    this._magnitude = magnitude
-    this._direction = direction
   }
 
   static fromPolar(magnitude, direction) {
     return new Vector(
       Math.cos(direction) * magnitude,
       Math.sin(direction) * magnitude,
-      magnitude,
-      direction,
     )
   }
 
+  get iszero() {
+    return this.Δx === 0 && this.Δy === 0
+  }
+
   get magnitude() {
-    if (this._magnitude === null) {
-      this._magnitude = (
-        this.Δx === this.Δy === 0 ? 0 :
-        Math.sqrt(this.Δx * this.Δx + this.Δy * this.Δy)
-      )
-    }
-    return this._magnitude
+    return this.iszero ? 0 : Math.sqrt(this.Δx * this.Δx + this.Δy * this.Δy)
   }
 
   get direction() {
-    if (this._direction === null) {
-      if (this.Δx === 0) {
-        if (this.Δy > 0) { this._direction = π/2 }
-        else         { this._direction = 3*π/2 }
-      }
-
-      this._direction = Math.atan(this.Δy / this.Δx)
-
-      // arctan has a range between -90° and 90° (always pointing to the right).
-      // When this.Δx is negative, we need to rotate the direction by 180°.
-      if (this.Δx < 0) { this._direction += π }
-
-      // Normalize the direction.
-      while (this._direction < 0)    { this._direction += 2*π }
-      while (this._direction >= 2*π) { this._direction -= 2*π }
+    if (this.Δx === 0) {
+      return this.Δy > 0 ? π/2 : 3*π/2
     }
-    return this._direction
+
+    let direction = Math.atan(this.Δy / this.Δx)
+
+    // arctan has a range between -90° and 90° (always pointing to the right).
+    // When this.Δx is negative, we need to rotate the direction by 180°.
+    if (this.Δx < 0) { direction += π }
+
+    // Normalize the direction.
+    while (direction < 0)    { direction += 2*π }
+    while (direction >= 2*π) { direction -= 2*π }
+
+    return direction
   }
 
   get unit() {
@@ -69,16 +61,23 @@ class Vector {
     return new Vector(
       this.Δx / magnitude,
       this.Δy / magnitude,
-      1,
-      this._direction
     )
   }
 
   plus(other) {
-    if (other.magnitude === 0) { return this }
+    if (this.iszero) { return other }
+    if (other.iszero) { return this }
     return new Vector(
       this.Δx + other.Δx,
       this.Δy + other.Δy,
+    )
+  }
+
+  minus(other) {
+    if (other.iszero) { return this }
+    return new Vector(
+      this.Δx - other.Δx,
+      this.Δy - other.Δy,
     )
   }
 
@@ -87,8 +86,6 @@ class Vector {
     return new Vector(
       this.Δx * factor,
       this.Δy * factor,
-      this._magnitude !== null ? this._magnitude * factor : null,
-      this._direction
     )
   }
 
@@ -98,12 +95,12 @@ class Vector {
 }
 
 class Segment {
-  constructor(x1, y1, x2, y2, normal=null) {
+  constructor(x1, y1, x2, y2) {
     this.x1 = x1
     this.y1 = y1
     this.x2 = x2
     this.y2 = y2
-    this._normal = normal
+    this._normal = null
   }
 
   get normal() {
