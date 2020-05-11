@@ -2,6 +2,14 @@ import { toPrecision } from './utils.js'
 const π = Math.PI
 const abs = Math.abs
 
+// Floating point math is, literally, the devil. So, let's use a threshold
+// of 5 decimal places for all of our numbers, for the sake of our sanity.
+function lte(a, b, t=0.000001) { return (a <= b + t) || (a <= b - t) }
+function gte(a, b, t=0.000001) { return (a >= b + t) || (a >= b - t) }
+
+function lte3(a, b, c) { return lte(a, b) && lte(b, c) }
+function gte3(a, b, c) { return gte(a, b) && gte(b, c) }
+
 class Point {
   constructor(x, y) {
     this.x = x
@@ -179,18 +187,16 @@ class Segment {
   }
 
   contains(point) {
-    // Floating point math is, literally, the devil. So, let's round off all of
-    // our numbers to 5 decimal places, for the sake of our sanity.
-    const p1x = toPrecision(this.p1.x, 5)
-    const p2x = toPrecision(this.p2.x, 5)
-    const mpx = toPrecision(point.x, 5)
-    const p1y = toPrecision(this.p1.y, 5)
-    const p2y = toPrecision(this.p2.y, 5)
-    const mpy = toPrecision(point.y, 5)
+    const p1x = this.p1.x
+    const p2x = this.p2.x
+    const mpx = point.x
+    const p1y = this.p1.y
+    const p2y = this.p2.y
+    const mpy = point.y
 
     return (
-      ( (p1x <= mpx && mpx <= p2x) || (p1x >= mpx && mpx >= p2x) ) &&
-      ( (p1y <= mpy && mpy <= p2y) || (p1y >= mpy && mpy >= p2y) )
+      ( lte3(p1x, mpx, p2x) || gte3(p1x, mpx, p2x) ) &&
+      ( lte3(p1y, mpy, p2y) || gte3(p1y, mpy, p2y) )
     )
   }
 }
