@@ -1,4 +1,6 @@
+import { toPrecision } from './utils.js'
 const π = Math.PI
+const abs = Math.abs
 
 class Point {
   constructor(x, y) {
@@ -95,13 +97,23 @@ class Vector {
 }
 
 class Segment {
-  constructor(x1, y1, x2, y2) {
-    this.x1 = x1
-    this.y1 = y1
-    this.x2 = x2
-    this.y2 = y2
+  constructor(p1, p2) {
+    this.p1 = p1
+    this.p2 = p2
     this._normal = null
   }
+
+  static fromCoords(x1, y1, x2, y2) {
+    return new Segment(
+      new Point(x1, y1),
+      new Point(x2, y2),
+    )
+  }
+
+  get x1() { return this.p1.x }
+  get y1() { return this.p1.y }
+  get x2() { return this.p2.x }
+  get y2() { return this.p2.y }
 
   get normal() {
     if (this._normal === null) {
@@ -116,6 +128,70 @@ class Segment {
 
   get slope() {
     return 1.0 * (this.y2 - this.y1) / (this.x2 - this.x1)
+  }
+
+  offset(vector) {
+    if (vector.iszero) { return this }
+
+    return new Segment(
+      this.p1.offset(vector),
+      this.p2.offset(vector),
+    )
+  }
+
+  intersectionWith(other) {
+    const s1 = this
+    const s2 = other
+
+    // Calculate the slopes. If they have the same slopes then they never
+    // intersect. The one time that two segments might have the same slope but
+    // still be parallel is if one is Infinity and the other is -Infinity.
+    const m1 = s1.slope
+    const m2 = s2.slope
+    if (m1 === m2) { return null }
+    if (abs(m1) === Infinity && abs(m2) === Infinity) { return null }
+
+    // Calculate the intercepts
+    const b1 = s1.y1 - m1 * s1.x1
+    const b2 = s2.y1 - m2 * s2.x1
+
+    // Calculate the intersection point. An infinite slope implies a vertical
+    // line.
+    const xi = ( !isFinite(m1) ? s1.x1 : ( !isFinite(m2) ? s2.x1 : (b2 - b1) / (m1 - m2) ) )
+    const yi = ( !isFinite(m1) ? m2 * xi + b2 : m1 * xi + b1 )
+    const i = new Point(xi, yi)
+
+    // Exclude the starting point of the segment from consideration
+    if (s2.p1 == i) { return null }
+
+    // If and only if the intersection point is on both segments, it is valid
+    if ( s1.contains(i) && s2.contains(i) ) { return i }
+    else { return null }
+  }
+
+  crosses(other) {
+    const intersection = this.intersectionWith(other)
+
+    // Exclude the starting point of the segment from consideration
+    if (other.p1 == intersection) { return false }
+
+    return intersection !== null
+  }
+
+  contains(point) {
+    // Floating point math is, literally, the devil. So, let's round off all of
+    // our numbers to 5 decimal places, for the sake of our sanity.
+    const p1x = toPrecision(this.p1.x, 5)
+    const p2x = toPrecision(this.p2.x, 5)
+    const mpx = toPrecision(point.x, 5)
+    const p1y = toPrecision(this.p1.y, 5)
+    const p2y = toPrecision(this.p2.y, 5)
+    const mpy = toPrecision(point.y, 5)
+
+    return (
+      ( (p1x <= mpx && mpx <= p2x) || (p1x >= mpx && mpx >= p2x) ) &&
+      ( (p1y <= mpy && mpy <= p2y) || (p1y >= mpy && mpy >= p2y) )
+    )
   }
 }
 

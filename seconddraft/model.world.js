@@ -13,6 +13,8 @@ class World {
 
     let getBounceVector = (agentStates) => {
       const [old_, new_] = agentStates
+      const path = new Segment(old_.position, new_.position)
+      const radius = new_.radius
 
       let agentBounceVector = zero
       for (const boundary of this.boundaries) {
@@ -22,19 +24,23 @@ class World {
         const side = ((old_.x - boundary.x1) * (boundary.y2 - boundary.y1) -
                       (old_.y - boundary.y1) * (boundary.x2 - boundary.x1)) >= 0 ? 1 : -1
 
-        // Then we find the nearest point on the edge of the agent to the
-        // boundary. This is going to be the point along the agents edge in the
-        // direction (or opposite direction, depending on the side) of the
-        // boundary's normal vector.
-        const normal = boundary.normal
-        const oldNearestX = old_.x - (normal.Δx * old_.radius) * side
-        const oldNearestY = old_.y - (normal.Δy * old_.radius) * side
-        const newNearestX = new_.x - (normal.Δx * new_.radius) * side
-        const newNearestY = new_.y - (normal.Δy * new_.radius) * side
-        const nearestPointPath = new Segment(oldNearestX, oldNearestY, newNearestX, newNearestY)
+        // We use that side to determine the correct orientation for our normal
+        // (because it matters if it's pointing toward the agent or away from
+        // it).
+        const normal = boundary.normal .times (side)
 
-        if (boundary.isCrossedBy(nearestPointPath)) {
-          agentBounceVector = agentBounceVector.plus(normal.times(side))
+        // Then we determine a threshold of how near the agent should be able
+        // to get to the boundary before we consider it a collision. We use the
+        // agent's radius to determine how far offset from the boundary the
+        // threshold should be.
+        const threshold = boundary.segment.offset(normal .times (radius))
+
+        // Finally, if the agent's path crosses that threshold, we add the
+        // boundary's side-oriented normal vector to the agent's bounce vector.
+        if (path.crosses(threshold)) {
+          agentBounceVector = agentBounceVector .plus (normal)
+        } else {
+          const _ = 1 + 1;
         }
       }
       return agentBounceVector

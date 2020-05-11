@@ -5,4 +5,8 @@ function* zipLongest(array1, array2) {
   }
 }
 
-export { zipLongest }
+function toPrecision(n, p) {
+  return +n.toFixed(p)
+}
+
+export { toPrecision, zipLongest }

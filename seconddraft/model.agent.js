@@ -13,7 +13,7 @@ class Agent {
 
   step(Δt=1) {
     // Calculate the change in position based on how much time has ellapsed (dt)
-    const Δp = this.velocity.times(Δt)
+    const Δp = this.velocity .times (Δt)
 
     // Calculate new position
     const position = this.position.offset(Δp)
@@ -48,7 +48,7 @@ class Agent {
     const dp = n.dot(v)
     if (dp >= 0) { return this }
 
-    const vf = v.plus(n.times(-2 * dp))
+    const vf = v .minus (n .times (2 * dp) )
 
     return new Agent({
       ...this,
