@@ -1,14 +1,6 @@
-import { toPrecision } from './utils.js'
+import { lte, gte } from './utils.js'
 const π = Math.PI
 const abs = Math.abs
-
-// Floating point math is, literally, the devil. So, let's use a threshold
-// of 5 decimal places for all of our numbers, for the sake of our sanity.
-function lte(a, b, t=0.000001) { return (a <= b + t) || (a <= b - t) }
-function gte(a, b, t=0.000001) { return (a >= b + t) || (a >= b - t) }
-
-function lte3(a, b, c) { return lte(a, b) && lte(b, c) }
-function gte3(a, b, c) { return gte(a, b) && gte(b, c) }
 
 class Point {
   constructor(x, y) {
@@ -168,9 +160,12 @@ class Segment {
       if (b !== null && y !== m * x + b) { return false}
     }
 
+    let lteChain = (a, b, c) => lte(a, b) && lte(b, c)
+    let gteChain = (a, b, c) => gte(a, b) && gte(b, c)
+
     return (
-      ( lte3(x1, x, x2) || gte3(x1, x, x2) ) &&
-      ( lte3(y1, y, y2) || gte3(y1, y, y2) )
+      ( lteChain(x1, x, x2) || gteChain(x1, x, x2) ) &&
+      ( lteChain(y1, y, y2) || gteChain(y1, y, y2) )
     )
   }
 
