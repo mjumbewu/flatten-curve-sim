@@ -123,6 +123,15 @@ class Segment {
   get x2() { return this.p2.x }
   get y2() { return this.p2.y }
 
+  offset(vector) {
+    if (vector.iszero) { return this }
+
+    return new Segment(
+      this.p1.offset(vector),
+      this.p2.offset(vector),
+    )
+  }
+
   get normal() {
     if (this._normal === null) {
       const orthogonal = new Vector(
@@ -134,70 +143,60 @@ class Segment {
     return this._normal
   }
 
-  get slope() {
-    return 1.0 * (this.y2 - this.y1) / (this.x2 - this.x1)
+  get slopeintercept() {
+    const x1 = this.p1.x
+    const y1 = this.p1.y
+    const x2 = this.p2.x
+    const y2 = this.p2.y
+
+    const m = (y2 - y1) / (x2 - x1)
+    const b = isFinite(m) ? y1 - m * x1 : null
+    return [m, b]
   }
 
-  offset(vector) {
-    if (vector.iszero) { return this }
+  contains(point, shortcut=false) {
+    const x1 = this.p1.x
+    const y1 = this.p1.y
+    const x2 = this.p2.x
+    const y2 = this.p2.y
 
-    return new Segment(
-      this.p1.offset(vector),
-      this.p2.offset(vector),
+    const {x, y} = point
+
+    if (!shortcut) {
+      const [m, b] = this.slopeintercept
+      if (b === null && x !== x1) { return false }
+      if (b !== null && y !== m * x + b) { return false}
+    }
+
+    return (
+      ( lte3(x1, x, x2) || gte3(x1, x, x2) ) &&
+      ( lte3(y1, y, y2) || gte3(y1, y, y2) )
     )
   }
 
-  intersectionWith(other) {
+  crosses(other) {
     const s1 = this
     const s2 = other
 
     // Calculate the slopes. If they have the same slopes then they never
     // intersect. The one time that two segments might have the same slope but
-    // still be parallel is if one is Infinity and the other is -Infinity.
-    const m1 = s1.slope
-    const m2 = s2.slope
+    // still be parallel is if one is Infinity and the other is -Infinity, but
+    // in that case both intercepts will be null.
+    const [m1, b1] = s1.slopeintercept
+    const [m2, b2] = s2.slopeintercept
     if (m1 === m2) { return null }
-    if (abs(m1) === Infinity && abs(m2) === Infinity) { return null }
+    if (b1 === null && b2 === null) { return null }
 
-    // Calculate the intercepts
-    const b1 = s1.y1 - m1 * s1.x1
-    const b2 = s2.y1 - m2 * s2.x1
-
-    // Calculate the intersection point. An infinite slope implies a vertical
-    // line.
-    const xi = ( !isFinite(m1) ? s1.x1 : ( !isFinite(m2) ? s2.x1 : (b2 - b1) / (m1 - m2) ) )
-    const yi = ( !isFinite(m1) ? m2 * xi + b2 : m1 * xi + b1 )
-    const i = new Point(xi, yi)
-
-    // Exclude the starting point of the segment from consideration
-    if (s2.p1 == i) { return null }
+    // Calculate the intersection point (where y == m1 * x + b1 == m2 * x + b2).
+    // Bear in mind in the code below that a null intercept implies a vertical
+    // line with an infinite slope.
+    const x = ( b1 === null ? s1.p1.x : ( b2 === null ? s2.p1.x : (b2 - b1) / (m1 - m2) ) )
+    const y = ( b1 === null ? m2 * x + b2 : m1 * x + b1 )
+    const i = new Point(x, y)
 
     // If and only if the intersection point is on both segments, it is valid
-    if ( s1.contains(i) && s2.contains(i) ) { return i }
+    if (s1.contains(i, true) && s2.contains(i, true)) { return i }
     else { return null }
-  }
-
-  crosses(other) {
-    const intersection = this.intersectionWith(other)
-
-    // Exclude the starting point of the segment from consideration
-    if (other.p1 == intersection) { return false }
-
-    return intersection !== null
-  }
-
-  contains(point) {
-    const p1x = this.p1.x
-    const p2x = this.p2.x
-    const mpx = point.x
-    const p1y = this.p1.y
-    const p2y = this.p2.y
-    const mpy = point.y
-
-    return (
-      ( lte3(p1x, mpx, p2x) || gte3(p1x, mpx, p2x) ) &&
-      ( lte3(p1y, mpy, p2y) || gte3(p1y, mpy, p2y) )
-    )
   }
 }
 

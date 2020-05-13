@@ -39,8 +39,6 @@ class World {
         // boundary's side-oriented normal vector to the agent's bounce vector.
         if (path.crosses(threshold)) {
           agentBounceVector = agentBounceVector .plus (normal)
-        } else {
-          const _ = 1 + 1;
         }
       }
       return agentBounceVector
