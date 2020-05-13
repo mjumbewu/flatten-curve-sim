@@ -100,7 +100,6 @@ class Segment {
   constructor(p1, p2) {
     this.p1 = p1
     this.p2 = p2
-    this._normal = null
   }
 
   static fromCoords(x1, y1, x2, y2) {
@@ -122,17 +121,6 @@ class Segment {
       this.p1.offset(vector),
       this.p2.offset(vector),
     )
-  }
-
-  get normal() {
-    if (this._normal === null) {
-      const orthogonal = new Vector(
-        this.y2 - this.y1,
-        this.x1 - this.x2,
-      )
-      this._normal = orthogonal.unit
-    }
-    return this._normal
   }
 
   get slopeintercept() {
