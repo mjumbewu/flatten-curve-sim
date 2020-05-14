@@ -1,4 +1,4 @@
-import { lte, gte } from './utils.js'
+import { eq, lte, gte } from './utils.js'
 const π = Math.PI
 const abs = Math.abs
 
@@ -144,8 +144,8 @@ class Segment {
 
     if (!shortcut) {
       const [m, b] = this.slopeintercept
-      if (b === null && x !== x1) { return false }
-      if (b !== null && y !== m * x + b) { return false}
+      if (b === null && !eq(x, x1)) { return false }
+      if (b !== null && !eq(y, m * x + b)) { return false}
     }
 
     let lteChain = (a, b, c) => lte(a, b) && lte(b, c)
