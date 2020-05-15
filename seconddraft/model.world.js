@@ -11,18 +11,17 @@ class World {
   step(Δt=1) {
     const zero = new Vector(0, 0)
 
-    let getBounceVector = (agentStates) => {
-      const [old_, new_] = agentStates
-      const path = new Segment(old_.position, new_.position)
-      const radius = new_.radius
+    let bounceIfCollided = (oldAgent, newAgent) => {
+      const path = new Segment(oldAgent.position, newAgent.position)
+      const radius = newAgent.radius
 
-      let agentBounceVector = zero
+      let bounceVector = zero
       for (const boundary of this.boundaries) {
         // First we figure out which side of the boundary the original agent
         // center was on. There is a good explanation of why the following does
         // that at https://math.stackexchange.com/a/274728/783341.
-        const side = ((old_.x - boundary.x1) * (boundary.y2 - boundary.y1) -
-                      (old_.y - boundary.y1) * (boundary.x2 - boundary.x1)) >= 0 ? 1 : -1
+        const side = ((oldAgent.x - boundary.x1) * (boundary.y2 - boundary.y1) -
+                      (oldAgent.y - boundary.y1) * (boundary.x2 - boundary.x1)) >= 0 ? 1 : -1
 
         // We use that side to determine the correct orientation for our normal
         // (because it matters if it's pointing toward the agent or away from
@@ -38,20 +37,14 @@ class World {
         // Finally, if the agent's path crosses that threshold, we add the
         // boundary's side-oriented normal vector to the agent's bounce vector.
         if (path.crosses(threshold)) {
-          agentBounceVector = agentBounceVector .plus (normal)
+          bounceVector = bounceVector .plus (normal)
         }
       }
-      return agentBounceVector
+
+      return ( bounceVector.iszero ? newAgent : newAgent.bounce(bounceVector) )
     }
 
-    let getBouncedAgent = (args) => {
-      const [agent, vector] = args
-      return agent.bounce(vector)
-    }
-
-    const steppedAgents = this.agents.map(a => a.step(Δt))
-    const bounceVectors = Array.from(zipLongest(this.agents, steppedAgents)).map(getBounceVector)
-    const agents = Array.from(zipLongest(steppedAgents, bounceVectors)).map(getBouncedAgent)
+    const agents = this.agents.map(a => bounceIfCollided(a, a.step(Δt)))
     const time = this.time + Δt
 
     return new World({

@@ -18,9 +18,14 @@ class Boundary {
 
   get normal() {
     if (this._normal === null) {
+      const x1 = this.segment.p1.x
+      const y1 = this.segment.p1.y
+      const x2 = this.segment.p2.x
+      const y2 = this.segment.p2.y
+
       const orthogonal = new Vector(
-        this.y2 - this.y1,
-        this.x1 - this.x2,
+        y2 - y1,
+        x1 - x2,
       )
       this._normal = orthogonal.unit
     }
