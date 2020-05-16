@@ -28,27 +28,28 @@ class Agent {
     })
   }
 
-  bounce(bounceVector) {
-    if (bounceVector.magnitude === 0) {
-      return this
-    }
-
-    // vf = v - 2 (v • n) n
+  bounce(force) {
+    // vf = v - 2 (v • f / |f|) f
     //
-    // v is the current directional vector
+    // f is the vector in which the sum of forces is being applied
+    // v is the current directional vector (i.e., the velocity)
     // vf (or xf - x0) is the after-bounce directional vector
 
-    // We want the normal vector to have a magnitude of 1, so let's "normalize" it.
-    const n = bounceVector.unit
+    const f = force
     const v = this.velocity
 
-    // Get the dot product of v and n. If the dot product is positive, then the
-    // agent is travelling in the same direction as the normal vector and we should
-    // not bounce.
-    const dp = n.dot(v)
+    // If the magnitude of the bounce vector is 0 then do nothing
+    if (f.iszero) { return this }
+
+    // Get the dot product of v and n.
+    const dp = f.dot(v)
+
+    // If the dot product is positive, then the agent is travelling in the same
+    // direction as the normal vector and we should not bounce.
     if (dp >= 0) { return this }
 
-    const vf = v .minus (n .times (2 * dp) )
+    // Calculate the final velocity vector
+    const vf = v .minus (f .times (2 * dp / f.magnitude) )
 
     return new Agent({
       ...this,

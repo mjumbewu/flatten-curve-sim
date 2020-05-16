@@ -15,7 +15,7 @@ class World {
       const path = new Segment(oldAgent.position, newAgent.position)
       const radius = newAgent.radius
 
-      let bounceVector = zero
+      let force = zero
       for (const boundary of this.boundaries) {
         // First we figure out which side of the boundary the original agent
         // center was on. There is a good explanation of why the following does
@@ -37,11 +37,11 @@ class World {
         // Finally, if the agent's path crosses that threshold, we add the
         // boundary's side-oriented normal vector to the agent's bounce vector.
         if (path.crosses(threshold)) {
-          bounceVector = bounceVector .plus (normal)
+          force = force .plus (normal)
         }
       }
 
-      return ( bounceVector.iszero ? newAgent : newAgent.bounce(bounceVector) )
+      return ( force.iszero ? newAgent : newAgent.bounce(force) )
     }
 
     const agents = this.agents.map(a => bounceIfCollided(a, a.step(Δt)))
