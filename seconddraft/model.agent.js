@@ -28,32 +28,21 @@ class Agent {
     })
   }
 
-  bounce(force) {
-    // vf = v - 2 (v • f / |f|) f
-    //
-    // f is the vector in which the sum of forces is being applied
-    // v is the current directional vector (i.e., the velocity)
-    // vf (or xf - x0) is the after-bounce directional vector
-
-    const f = force
+  bounce(effectiveNormal) {
+    const n = effectiveNormal
     const v = this.velocity
 
-    // If the magnitude of the bounce vector is 0 then do nothing
-    if (f.iszero) { return this }
+    // The effectiveNormal gives us the direction of impact on the agent. The
+    // agent's final velocity should have the same magnitude as the initial
+    // velocity -- think of this as conservation of momentum.
+    const i = v .projected (n) .times (-2)
 
-    // Get the dot product of v and n.
-    const dp = f.dot(v)
-
-    // If the dot product is positive, then the agent is travelling in the same
-    // direction as the normal vector and we should not bounce.
-    if (dp >= 0) { return this }
-
-    // Calculate the final velocity vector
-    const vf = v .minus (f .times (2 * dp / f.magnitude) )
+    // Calculate the new velocity vector
+    const velocity = v .plus (i)
 
     return new Agent({
       ...this,
-      velocity: vf
+      velocity
     })
   }
 }

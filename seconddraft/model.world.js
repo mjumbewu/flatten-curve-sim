@@ -13,9 +13,10 @@ class World {
 
     let bounceIfCollided = (oldAgent, newAgent) => {
       const path = new Segment(oldAgent.position, newAgent.position)
+      const velocity = oldAgent.velocity
       const radius = newAgent.radius
 
-      let force = zero
+      let reaction = zero
       for (const boundary of this.boundaries) {
         // First we figure out which side of the boundary the original agent
         // center was on. There is a good explanation of why the following does
@@ -28,20 +29,29 @@ class World {
         // it).
         const normal = boundary.normal .times (side)
 
+        // If the dot product of the normal and the agent's velocity is not
+        // negative, then the agent is moving away from the boundary, and so
+        // shouldn't collide with it.
+        if (velocity.dot(normal) >= 0) { continue }
+
         // Then we determine a threshold of how near the agent should be able
         // to get to the boundary before we consider it a collision. We use the
         // agent's radius to determine how far offset from the boundary the
         // threshold should be.
         const threshold = boundary.segment.offset(normal .times (radius))
 
-        // Finally, if the agent's path crosses that threshold, we add the
-        // boundary's side-oriented normal vector to the agent's bounce vector.
+        // Finally, if the agent's path crosses that threshold, we project the
+        // agent's velocity onto the boundary's normal vector, and add the
+        // negative of that projection to the impacts that we should apply to
+        // the agent. Think of this as a form of Newton's third law of motion
+        // -- every action has an equal and opposite reaction.
         if (path.crosses(threshold)) {
-          force = force .plus (normal)
+          const impact = velocity .projected (normal)
+          reaction = reaction .minus (impact)
         }
       }
 
-      return ( force.iszero ? newAgent : newAgent.bounce(force) )
+      return ( reaction.iszero ? newAgent : newAgent.bounce(reaction) )
     }
 
     const agents = this.agents.map(a => bounceIfCollided(a, a.step(Δt)))

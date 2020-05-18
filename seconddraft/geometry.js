@@ -94,6 +94,11 @@ class Vector {
   dot(other) {
     return this.Δx * other.Δx + this.Δy * other.Δy
   }
+
+  projected(other) {
+    const magnitude = other.magnitude
+    return other .times (this.dot(other) / magnitude / magnitude)
+  }
 }
 
 class Segment {
