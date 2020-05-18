@@ -17,19 +17,16 @@ class Boundary {
   get y2() { return this.segment.y2 }
 
   get normal() {
-    if (this._normal === null) {
-      const x1 = this.segment.p1.x
-      const y1 = this.segment.p1.y
-      const x2 = this.segment.p2.x
-      const y2 = this.segment.p2.y
+    const x1 = this.segment.p1.x
+    const y1 = this.segment.p1.y
+    const x2 = this.segment.p2.x
+    const y2 = this.segment.p2.y
 
-      const orthogonal = new Vector(
-        y2 - y1,
-        x1 - x2,
-      )
-      this._normal = orthogonal.unit
-    }
-    return this._normal
+    const orthogonal = new Vector(
+      y2 - y1,
+      x1 - x2,
+    )
+    return orthogonal.unit
   }
 }
 
