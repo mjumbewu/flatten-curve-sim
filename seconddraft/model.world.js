@@ -9,14 +9,12 @@ class World {
   }
 
   step(Δt=1) {
-    const zero = new Vector(0, 0)
-
     let bounceIfCollided = (oldAgent, newAgent) => {
       const path = new Segment(oldAgent.position, newAgent.position)
       const velocity = oldAgent.velocity
       const radius = newAgent.radius
 
-      let reaction = zero
+      let collisionNormals = []
       for (const boundary of this.boundaries) {
         // First we figure out which side of the boundary the original agent
         // center was on. There is a good explanation of why the following does
@@ -40,18 +38,14 @@ class World {
         // threshold should be.
         const threshold = boundary.segment.offset(normal .times (radius))
 
-        // Finally, if the agent's path crosses that threshold, we project the
-        // agent's velocity onto the boundary's normal vector, and add the
-        // negative of that projection to the impacts that we should apply to
-        // the agent. Think of this as a form of Newton's third law of motion
-        // -- every action has an equal and opposite reaction.
+        // Finally, if the agent's path crosses that threshold, we collect the
+        // boundary's normal as one of the collision normals.
         if (path.crosses(threshold)) {
-          const impact = velocity .projected (normal)
-          reaction = reaction .minus (impact)
+          collisionNormals.push(normal)
         }
       }
 
-      return ( reaction.iszero ? newAgent : newAgent.bounce(reaction) )
+      return ( newAgent.bounce(collisionNormals) )
     }
 
     const agents = this.agents.map(a => bounceIfCollided(a, a.step(Δt)))

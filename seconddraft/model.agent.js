@@ -1,5 +1,7 @@
 import { Point, Vector } from './geometry.js'
 
+const ZERO_VECTOR = new Vector(0, 0)
+
 class Agent {
   constructor(params) {
     this.position = params.position || new Point(params.x, params.y)
@@ -28,14 +30,26 @@ class Agent {
     })
   }
 
-  bounce(effectiveNormal) {
-    const n = effectiveNormal
+  bounce(normals) {
+    if (normals.length === 0) { return this }
+
+    // Get the initial velocity vector
     const v = this.velocity
 
-    // The effectiveNormal gives us the direction of impact on the agent. The
+    // Construct an effective normal by projecting the velocity onto each of
+    // the collision normals, and then negating the resulting impact vectors.
+    // Think of this as a form of Newton's third law of motion -- every action
+    // has an equal and opposite reaction.
+    const n = normals
+      .map(n => v.projected(n))
+      .reduce((i1, i2) => i1 .minus (i2), ZERO_VECTOR)
+
+    if (n.iszero) { return this }
+
+    // The effective normal gives us the direction of impact on the agent. The
     // agent's final velocity should have the same magnitude as the initial
-    // velocity -- think of this as conservation of momentum.
-    const i = v .projected (n) .times (-2)
+    // velocity -- think of this as a kind of conservation of momentum.
+    const i = v.projected(n) .times (-2)
 
     // Calculate the new velocity vector
     const velocity = v .plus (i)
