@@ -16,6 +16,13 @@ class Point {
       this.y + vector.Δy,
     )
   }
+
+  diff(other) {
+    return new Vector(
+      this.x - other.x,
+      this.y - other.y,
+    )
+  }
 }
 
 class Vector {
