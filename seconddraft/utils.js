@@ -11,4 +11,20 @@ function eq(a, b, t=0.000001) { return (b - t <= a && a <= b + t) }
 function lte(a, b, t=0.000001) { return (a <= b + t) }
 function gte(a, b, t=0.000001) { return (a >= b - t) }
 
-export { eq, lte, gte, zipLongest }
+// Sometimes we want to choose a minimal value from an array using some key
+// function.
+function minimal(values, keyfunc) {
+  let minval = null
+  let minkey = null
+
+  for (const val of values) {
+    const key = keyfunc(val)
+    if (minkey === null || key < minkey) {
+      minkey = key
+      minval = val
+    }
+  }
+  return minval
+}
+
+export { eq, lte, gte, minimal, zipLongest }
