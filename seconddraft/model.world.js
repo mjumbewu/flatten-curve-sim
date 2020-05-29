@@ -75,22 +75,28 @@ function bounceAgentOffBoundaries(oldAgent, newAgent, boundaries) {
   return repositionedAgent.bounce(collisionNormals)
 }
 
-function bounceAgentOffOtherAgents(agent, agents) {
-  let collisionNormals = []
-  for (const other of agents) {
-    if (other === agent) { continue }
+function bounceAgentOffOtherAgents(agent, otherAgents) {
+  function areAgentsColliding(other) {
+    if (other === agent) { return false }
 
     const minCollisionDist = agent.radius + other.radius
     if (Math.abs(agent.x - other.x) > minCollisionDist ||
-        Math.abs(agent.y - other.y) > minCollisionDist) { continue }
+        Math.abs(agent.y - other.y) > minCollisionDist) { return false }
 
-    const normal = agent.position.diff(other.position).unit
-    if (agent.velocity.dot(normal) >= 0) { continue }
-
-    if (normal.magnitude <= minCollisionDist) {
-      collisionNormals.push(normal)
-    }
+    const diff = agent.position.diff(other.position)
+    return (
+      agent.velocity.dot(diff) < 0 &&
+      diff.magnitude <= minCollisionDist
+    )
   }
+
+  function getAgentCollisionNormal(other) {
+    return agent.position.diff(other.position).unit
+  }
+
+  const collisionNormals = otherAgents
+    .filter(areAgentsColliding)
+    .map(getAgentCollisionNormal)
 
   return agent.bounce(collisionNormals)
 }
