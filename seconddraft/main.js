@@ -2,9 +2,11 @@ import { Agent } from './model.agent.js'
 import { Boundary } from './model.boundary.js'
 import { World } from './model.world.js'
 import { Simulation } from './simulation.js'
+import { LegendView } from './view.legend.js'
 import { SVGSimView } from './view.svgsim.js'
 
 let el = document.querySelector('#simulation-world')
+let legend = document.querySelector('#simulation-legend')
 const W = el.viewBox.baseVal.width
 const H = el.viewBox.baseVal.height
 const R = 5
@@ -34,7 +36,17 @@ let boundaries = [
 
 let world = new World({agents, boundaries})
 
-let simview = new SVGSimView({ el })
+let colors = {
+  uninfected: '#266',
+  infected: '#aa6c39',
+  symptomatic: '#aa3939',
+  recovered: '#2d882d',
+  deceased: '#888',
+}
+
+let simview = new SVGSimView({ el, colors })
+let legendview = new LegendView({ el: legend, colors })
+legendview.initColors()
 simview.draw(world)
 
 let sim = new Simulation({world})

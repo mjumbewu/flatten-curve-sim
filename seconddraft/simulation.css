@@ -15,6 +15,21 @@ body {
   max-height: 95vh;
 }
 
+#simulation-legend {
+  list-style: none;
+}
+
+#simulation-legend li {
+  display: block;
+}
+
+#simulation-legend li::before {
+  content: " ";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
 /*== The Simulation */
 .simulation-boundary {
   stroke: gray;
