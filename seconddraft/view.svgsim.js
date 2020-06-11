@@ -5,9 +5,25 @@ class SVGSimView {
     this.worldEl = options.el
     this.agentEls = []
     this.boundaryEls = []
+    this.styleEl = null
+    this.colors = options.colors
+  }
+
+  initStyle() {
+    if (!this.styleEl) {
+      this.styleEl = document.createElement('style')
+      const css = Object.entries(this.colors)
+        .map(([health, color]) => `.${health} { fill: ${color}; }`)
+        .join('\n')
+      this.styleEl.innerHTML = css
+      this.worldEl.appendChild(this.styleEl)
+    }
+    return this
   }
 
   draw(world) {
+    this.initStyle()
+
     // == DRAW THE AGENTS ==
     // Match up each agent in the world with an SVG circle element. Ensure that
     // we're dealing with exactly as many circle elements as we are agents. If
@@ -24,6 +40,10 @@ class SVGSimView {
       agentEl.setAttribute('cx', agent.x)
       agentEl.setAttribute('cy', agent.y)
       agentEl.setAttribute('r', agent.radius)
+
+      const health = agent.health
+      const color = this.colors[health]
+      agentEl.setAttribute('class', health)
     }
 
     // == DRAW THE BOUNDARIES ==

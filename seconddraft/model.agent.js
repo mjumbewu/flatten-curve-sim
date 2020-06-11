@@ -1,4 +1,5 @@
 import { Point, Vector } from './geometry.js'
+import { Infection } from './model.infection.js'
 
 const ZERO_VECTOR = new Vector(0, 0)
 
@@ -8,10 +9,20 @@ class Agent {
     this.radius = params.radius
     this.velocity = params.velocity || Vector.fromPolar(params.speed, params.direction)
     this.time = params.time || 0
+
+    this.vulnerability = params.vulnerability || 1
+    this.infection = params.infection || new Infection({
+      infectedtime: params.infectedtime,
+      asymptomaticdur: params.asymptomaticdur,
+      symptomaticdur: params.symptomaticdur,
+      resolution: params.resolution,
+      infectiousness: params.infectiousness,
+    })
   }
 
   get x() { return this.position.x }
   get y() { return this.position.y }
+  get health() { return this.infection.healthAtTime(this.time) }
 
   step(Δt=1) {
     // Calculate the change in position based on how much time has ellapsed (dt)
