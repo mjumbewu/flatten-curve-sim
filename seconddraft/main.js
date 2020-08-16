@@ -23,7 +23,7 @@ let agents = Array(1000)
       y: randBetween(R, H - R),
       radius: R,
       direction: rand() * 2*π,
-      speed: 1,
+      speed: 2,
     })
   )
 
@@ -32,6 +32,9 @@ let boundaries = [
   new Boundary({x1: W, y1: 0, x2: W, y2: H}),
   new Boundary({x1: W, y1: H, x2: 0, y2: H}),
   new Boundary({x1: 0, y1: H, x2: 0, y2: 0}),
+
+  new Boundary({x1: 2.0 * W / 3, y1: 0, x2: W, y2: 1.0 * H / 3}),
+  new Boundary({x1: 0, y1: 2.0 * H / 3, x2: 1.0 * W / 3, y2: H}),
 ]
 
 let world = new World({agents, boundaries})
@@ -50,7 +53,18 @@ legendview.initColors()
 simview.draw(world)
 
 let sim = new Simulation({world})
-sim.on('step', e => simview.draw(e.detail.sim.world))
+let starttime = new Date()
+sim.on('step', e => {
+  const world = e.detail.sim.world
+  if (world.time % 50 == 0) {
+    simview.draw(e.detail.sim.world)
+  }
+
+  if (world.time % 50 == 0) {
+    const currtime = new Date()
+    console.log(`${1000.0 * world.time / (currtime - starttime)} steps per second`)
+  }
+})
 sim.start()
 
 window.sim = sim

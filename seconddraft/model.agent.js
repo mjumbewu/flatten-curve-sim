@@ -15,14 +15,36 @@ class Agent {
       infectedtime: params.infectedtime,
       asymptomaticdur: params.asymptomaticdur,
       symptomaticdur: params.symptomaticdur,
-      resolution: params.resolution,
       infectiousness: params.infectiousness,
+    })
+    this.deceased = params.deceased || false
+  }
+
+  infect(infectionparams) {
+    const infection = new Infection({
+      ...infectionparams,
+      infectedtime: this.time,
+    })
+
+    return new Agent({
+      ...this,
+      infection
     })
   }
 
   get x() { return this.position.x }
   get y() { return this.position.y }
-  get health() { return this.infection.healthAtTime(this.time) }
+  get health() {
+    if (this.infection === null || t < this.infection.infectedtime) {
+      return 'uninfected'
+    } else if (t < t.infection.symptomatictime) {
+      return 'infected'
+    } else if (t < t.infection.resolvedtime) {
+      return 'symptomatic'
+    } else {
+      return 'recovered'
+    }
+return this.isdeceased ? 'deceased' : this.infection.healthAtTime(this.time) }
 
   step(Δt=1) {
     // Calculate the change in position based on how much time has ellapsed (dt)

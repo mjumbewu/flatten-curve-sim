@@ -3,7 +3,6 @@ class Infection {
     this.infectedtime = params.infectedtime || null
     this.asymptomaticdur = params.asymptomaticdur || null
     this.symptomaticdur = params.symptomaticdur || null
-    this.resolution = params.resolution || null
     this.infectiousness = params.infectiousness || null
   }
 
@@ -21,10 +20,8 @@ class Infection {
       return 'infected'
     } else if (t < t.resolvedtime) {
       return 'symptomatic'
-    } else if (t.resolution === 'recovery') {
+    } else {
       return 'recovered'
-    } else if (t.resolution === 'death') {
-      return 'deceased'
     }
   }
 }
